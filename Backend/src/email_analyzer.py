@@ -48,10 +48,20 @@ def analyze_email(email_text):
     )
 
     # STEP 5: Generate AI response
-    ai_response = generate_response(
-        email_text,
-        intent_result["intent"]
-    )
+    # Gemini may fail because of quota or API errors.
+    # This should not stop the rest of the email analysis.
+    try:
+        ai_response = generate_response(
+            email_text,
+            intent_result["intent"]
+        )
+    except Exception as e:
+        print(f"Gemini response generation failed: {e}")
+
+        ai_response = (
+            "AI-generated response is temporarily unavailable "
+            "because the Gemini API quota has been exceeded."
+        )
 
     # STEP 6: Return result
     return {
