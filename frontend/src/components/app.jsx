@@ -8,6 +8,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [apiConnected, setApiConnected] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Check whether FastAPI is running
   useEffect(() => {
@@ -23,6 +24,7 @@ function App() {
     checkBackend();
   }, []);
 
+  // Analyze email
   const analyzeEmail = async () => {
     if (!email.trim()) {
       setError("Please enter an email before analyzing.");
@@ -32,6 +34,7 @@ function App() {
     setLoading(true);
     setError("");
     setResult(null);
+    setCopied(false);
 
     try {
       const response = await fetch(`${API_URL}/analyze`, {
@@ -65,10 +68,30 @@ function App() {
     }
   };
 
+  // Copy AI generated response
+  const copyResponse = async () => {
+    if (!result?.response) return;
+
+    try {
+      await navigator.clipboard.writeText(result.response);
+
+      setCopied(true);
+
+      setTimeout(() => {
+        setCopied(false);
+      }, 1500);
+    } catch (err) {
+      console.error(err);
+      setError("Unable to copy the response.");
+    }
+  };
+
+  // Clear everything
   const clearAll = () => {
     setEmail("");
     setResult(null);
     setError("");
+    setCopied(false);
   };
 
   const isSpam = result?.status === "spam";
@@ -404,6 +427,100 @@ function App() {
           font-size: 13px;
         }
 
+        /* EXPLAINABLE AI */
+
+        .intent-explanation {
+          margin-top: 14px;
+          padding: 12px 14px;
+          background: #f5f7ff;
+          border: 1px solid #e0e7ff;
+          border-radius: 11px;
+        }
+
+        .intent-explanation-title {
+          font-size: 11px;
+          font-weight: 750;
+          color: #667085;
+          text-transform: uppercase;
+          letter-spacing: 0.6px;
+          margin-bottom: 6px;
+        }
+
+        .intent-explanation-text {
+          font-size: 13px;
+          line-height: 1.5;
+          color: #475467;
+        }
+
+        .evidence {
+          margin-top: 9px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+
+        .evidence-label {
+          font-size: 11px;
+          color: #667085;
+          font-weight: 700;
+          margin-right: 2px;
+        }
+
+        .evidence-tag {
+          padding: 4px 8px;
+          border-radius: 7px;
+          background: #eef2ff;
+          color: #4f46e5;
+          font-size: 11px;
+          font-weight: 650;
+        }
+
+        /* PRIORITY */
+
+        .priority-high {
+          color: #dc2626;
+        }
+
+        .priority-medium {
+          color: #d97706;
+        }
+
+        .priority-low {
+          color: #15803d;
+        }
+
+        .priority-box {
+          margin-top: 12px;
+          padding: 12px 14px;
+          border-radius: 11px;
+          background: #f8fafc;
+          border: 1px solid #edf0f5;
+        }
+
+        .priority-reason {
+          color: #667085;
+          font-size: 12px;
+          line-height: 1.5;
+        }
+
+        .priority-evidence {
+          margin-top: 9px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+
+        .priority-tag {
+          padding: 4px 8px;
+          border-radius: 7px;
+          background: #fff7ed;
+          color: #c2410c;
+          font-size: 11px;
+          font-weight: 650;
+        }
+
+        /* EMAIL */
+
         .email-preview {
           background: #f8fafc;
           border: 1px solid #edf0f5;
@@ -414,6 +531,20 @@ function App() {
           line-height: 1.65;
           white-space: pre-wrap;
           word-break: break-word;
+        }
+
+        /* AI RESPONSE */
+
+        .response-preview {
+          background: #f5f7ff;
+          border: 1px solid #e0e7ff;
+          color: #344054;
+        }
+
+        .response-actions {
+          display: flex;
+          justify-content: flex-end;
+          margin-top: 12px;
         }
 
         /* INTENT SCORES */
@@ -561,9 +692,9 @@ function App() {
             </h1>
 
             <p>
-              Detect spam and automatically identify the intent
-              behind an email using your trained machine learning
-              models.
+              Detect spam, identify email intent, and
+              generate professional AI-powered responses
+              using machine learning and Gemini AI.
             </p>
           </section>
 
@@ -695,8 +826,48 @@ function App() {
 
                       <div className="score">
                         Decision score:{" "}
-                        {Number(intentScore).toFixed(4)}
+                        {Number(
+                          intentScore
+                        ).toFixed(4)}
                       </div>
+
+                      {/* EXPLAINABLE AI */}
+
+                      {result.intent.explanation && (
+                        <div className="intent-explanation">
+
+                          <div className="intent-explanation-title">
+                            Why this intent?
+                          </div>
+
+                          <div className="intent-explanation-text">
+                            {result.intent.explanation.summary}
+                          </div>
+
+                          {result.intent.explanation.evidence?.length > 0 && (
+                            <div className="evidence">
+
+                              <span className="evidence-label">
+                                Evidence:
+                              </span>
+
+                              {result.intent.explanation.evidence.map(
+                                (keyword) => (
+                                  <span
+                                    className="evidence-tag"
+                                    key={keyword}
+                                  >
+                                    {keyword}
+                                  </span>
+                                )
+                              )}
+
+                            </div>
+                          )}
+
+                        </div>
+                      )}
+
                     </>
                   ) : (
                     <div className="card-value spam">
@@ -705,6 +876,72 @@ function App() {
                   )}
 
                 </div>
+
+                {/* PRIORITY */}
+
+                {result.status === "legitimate" && (
+                  <div className="result-card">
+
+                    <div className="card-label">
+                      Priority Detection
+                    </div>
+
+                    {result.priority ? (
+                      <>
+                        <div
+                          className={`card-value ${
+                            result.priority.level === "high"
+                              ? "priority-high"
+                              : result.priority.level === "medium"
+                              ? "priority-medium"
+                              : "priority-low"
+                          }`}
+                        >
+                          {result.priority.level.toUpperCase()}
+                        </div>
+
+                        <div className="score">
+                          Priority score:{" "}
+                          {result.priority.score}
+                        </div>
+
+                        <div className="priority-box">
+
+                          <div className="priority-reason">
+                            {result.priority.reason}
+                          </div>
+
+                          {result.priority.evidence?.length > 0 && (
+                            <div className="priority-evidence">
+
+                              <span className="evidence-label">
+                                Evidence:
+                              </span>
+
+                              {result.priority.evidence.map(
+                                (keyword) => (
+                                  <span
+                                    className="priority-tag"
+                                    key={keyword}
+                                  >
+                                    {keyword}
+                                  </span>
+                                )
+                              )}
+
+                            </div>
+                          )}
+
+                        </div>
+                      </>
+                    ) : (
+                      <div className="card-value">
+                        Not Available
+                      </div>
+                    )}
+
+                  </div>
+                )}
 
                 {/* EMAIL */}
 
@@ -719,6 +956,36 @@ function App() {
                   </div>
 
                 </div>
+
+                {/* AI GENERATED RESPONSE */}
+
+                {result.status === "legitimate" &&
+                  result.response && (
+                    <div className="result-card full-card">
+
+                      <div className="card-label">
+                        AI Generated Response
+                      </div>
+
+                      <div className="email-preview response-preview">
+                        {result.response}
+                      </div>
+
+                      <div className="response-actions">
+
+                        <button
+                          className="clear-btn"
+                          onClick={copyResponse}
+                        >
+                          {copied
+                            ? "Copied ✓"
+                            : "Copy Response"}
+                        </button>
+
+                      </div>
+
+                    </div>
+                  )}
 
                 {/* INTENT SCORES */}
 
@@ -737,11 +1004,12 @@ function App() {
                         .sort((a, b) => b[1] - a[1])
                         .map(([name, score]) => {
 
-                          const maxScore = Math.max(
-                            ...Object.values(
-                              result.intent.scores
-                            )
-                          );
+                          const maxScore =
+                            Math.max(
+                              ...Object.values(
+                                result.intent.scores
+                              )
+                            );
 
                           const percentage =
                             maxScore > 0
@@ -762,6 +1030,7 @@ function App() {
                               </div>
 
                               <div className="score-bar">
+
                                 <div
                                   className="score-fill"
                                   style={{
@@ -771,6 +1040,7 @@ function App() {
                                     )}%`,
                                   }}
                                 ></div>
+
                               </div>
 
                               <div className="score-number">
@@ -792,10 +1062,11 @@ function App() {
           )}
 
           <div className="footer">
-            Smart Email Classification • Spam Detection + Intent Classification
+            Smart Email Classification • Spam Detection + Intent Classification + AI Response
           </div>
 
         </main>
+
       </div>
     </>
   );
