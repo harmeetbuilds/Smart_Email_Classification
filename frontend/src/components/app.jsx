@@ -9,6 +9,7 @@ function App() {
   const [error, setError] = useState("");
   const [apiConnected, setApiConnected] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [editingResponse, setEditingResponse] = useState(false);
 
   // Check whether FastAPI is running
   useEffect(() => {
@@ -35,6 +36,7 @@ function App() {
     setError("");
     setResult(null);
     setCopied(false);
+    setEditingResponse(false);
 
     try {
       const response = await fetch(`${API_URL}/analyze`, {
@@ -86,12 +88,58 @@ function App() {
     }
   };
 
+  // Regenerate AI response
+  const regenerateResponse = async () => {
+    if (!email.trim()) return;
+
+    setLoading(true);
+    setError("");
+    setCopied(false);
+    setEditingResponse(false);
+
+    try {
+      const response = await fetch(`${API_URL}/analyze`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Unable to regenerate response.");
+      }
+
+      const data = await response.json();
+
+      setResult(data);
+      setApiConnected(true);
+    } catch (err) {
+      console.error(err);
+
+      setError(
+        "Unable to regenerate the response. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Save edited response
+  const saveEditedResponse = () => {
+    setEditingResponse(false);
+    setCopied(false);
+  };
+
   // Clear everything
   const clearAll = () => {
     setEmail("");
     setResult(null);
     setError("");
     setCopied(false);
+    setEditingResponse(false);
   };
 
   const isSpam = result?.status === "spam";
@@ -311,6 +359,11 @@ function App() {
 
         .clear-btn:hover {
           background: #f8fafc;
+        }
+
+        .clear-btn:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
         }
 
         .analyze-btn {
@@ -544,7 +597,28 @@ function App() {
         .response-actions {
           display: flex;
           justify-content: flex-end;
+          gap: 8px;
           margin-top: 12px;
+          flex-wrap: wrap;
+        }
+
+        .response-editor {
+          width: 100%;
+          min-height: 220px;
+          resize: vertical;
+          background: #f5f7ff;
+          border: 1px solid #e0e7ff;
+          border-radius: 11px;
+          padding: 15px;
+          color: #344054;
+          font-size: 14px;
+          line-height: 1.65;
+          outline: none;
+        }
+
+        .response-editor:focus {
+          border-color: #6366f1;
+          box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
         }
 
         /* INTENT SCORES */
@@ -633,6 +707,14 @@ function App() {
           .clear-btn,
           .analyze-btn {
             width: 100%;
+          }
+
+          .response-actions {
+            justify-content: stretch;
+          }
+
+          .response-actions button {
+            flex: 1;
           }
 
           .score-row {
@@ -967,22 +1049,79 @@ function App() {
                         AI Generated Response
                       </div>
 
-                      <div className="email-preview response-preview">
-                        {result.response}
-                      </div>
+                      {editingResponse ? (
+                        <>
+                          <textarea
+                            className="response-editor"
+                            value={result.response}
+                            onChange={(e) =>
+                              setResult((previous) => ({
+                                ...previous,
+                                response: e.target.value,
+                              }))
+                            }
+                          />
 
-                      <div className="response-actions">
+                          <div className="response-actions">
 
-                        <button
-                          className="clear-btn"
-                          onClick={copyResponse}
-                        >
-                          {copied
-                            ? "Copied ✓"
-                            : "Copy Response"}
-                        </button>
+                            <button
+                              className="clear-btn"
+                              onClick={() =>
+                                setEditingResponse(false)
+                              }
+                            >
+                              Cancel
+                            </button>
 
-                      </div>
+                            <button
+                              className="analyze-btn"
+                              onClick={saveEditedResponse}
+                            >
+                              Save Response
+                            </button>
+
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="email-preview response-preview">
+                            {result.response}
+                          </div>
+
+                          <div className="response-actions">
+
+                            <button
+                              className="clear-btn"
+                              onClick={() =>
+                                setEditingResponse(true)
+                              }
+                            >
+                              Edit Response
+                            </button>
+
+                            <button
+                              className="clear-btn"
+                              onClick={regenerateResponse}
+                              disabled={loading}
+                            >
+                              {loading
+                                ? "Regenerating..."
+                                : "Regenerate"}
+                            </button>
+
+                            <button
+                              className="clear-btn"
+                              onClick={copyResponse}
+                              disabled={loading}
+                            >
+                              {copied
+                                ? "Copied ✓"
+                                : "Copy Response"}
+                            </button>
+
+                          </div>
+                        </>
+                      )}
 
                     </div>
                   )}
